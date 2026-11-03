@@ -1,15 +1,20 @@
+
 import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Image,
+  TextInput,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
   ActivityIndicator,
   Alert,
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+
 import SettingsScreen from './SettingsScreen';
 import AchievementScreen from './Achievement';
 import PrivacyScreen from './PrivacyScreen';
@@ -18,16 +23,33 @@ interface ProfileProps {
   onLogout: () => void;
 }
 
-interface UserProfile {
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: 'Student' | 'Teacher';
+interface StudentProfile {
+  fullName: string;
+  studentId: string;
+  university: string;
+  program: string;
+  course: string;
+  group: string;
+  status: string;
+  photo: string | null;
 }
 
+const DEFAULT_PROFILE: StudentProfile = {
+  fullName: 'SEMENBAY YERASSYL NURZHANULY',
+  studentId: '338776',
+  university: 'Мұхамеджан Тынышбаев атындағы ALT UNIVERSITY',
+  program: '6B06116 - Information Systems',
+  course: '2',
+  group: 'ИС-25-3к',
+  status: 'Обучающийся',
+  photo: null,
+};
+
 export default function ProfileScreen({ onLogout }: ProfileProps) {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<StudentProfile>(DEFAULT_PROFILE);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+
   const [showSettings, setShowSettings] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -35,13 +57,16 @@ export default function ProfileScreen({ onLogout }: ProfileProps) {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const savedUser = await AsyncStorage.getItem('userProfile');
+        const savedProfile = await AsyncStorage.getItem('studentProfile');
 
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
+        if (savedProfile) {
+          setProfile({
+            ...DEFAULT_PROFILE,
+            ...JSON.parse(savedProfile),
+          });
         }
       } catch (error) {
-        console.log('Error loading profile:', error);
+        console.log('Error loading student profile:', error);
       } finally {
         setLoading(false);
       }
@@ -50,54 +75,121 @@ export default function ProfileScreen({ onLogout }: ProfileProps) {
     loadProfile();
   }, []);
 
+  const saveProfile = async () => {
+    try {
+      await AsyncStorage.setItem(
+        'studentProfile',
+        JSON.stringify(profile)
+      );
+
+      setEditing(false);
+      Alert.alert('Success', 'Profile successfully saved!');
+    } catch (error) {
+      Alert.alert('Error', 'Could not save profile.');
+    }
+  };
+
+  const choosePhoto = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Permission required',
+          'Allow access to your photo library to choose a profile picture.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        setProfile({
+          ...profile,
+          photo: result.assets[0].uri,
+        });
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Could not open photo library.');
+    }
+  };
+
+  const updateField = (field: keyof StudentProfile, value: string) => {
+    setProfile((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
+  };
+
+  const showMessage = (title: string) => {
+    Alert.alert(title, 'This feature will be available soon.');
+  };
+
   if (loading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#B52B91" />
+        <ActivityIndicator size="large" color="#7955E8" />
       </View>
     );
   }
 
-  // Settings screen
   if (showSettings) {
     return (
-      <SettingsScreen
-        onBack={() => setShowSettings(false)}
-      />
+      <SettingsScreen onBack={() => setShowSettings(false)} />
     );
   }
 
-  // Achievement screen
   if (showAchievements) {
     return (
       <AchievementScreen
-        onBack={() => {
-          console.log('RETURNING TO PROFILE');
-          setShowAchievements(false);
-        }}
+        onBack={() => setShowAchievements(false)}
       />
     );
   }
 
-  // Privacy screen
   if (showPrivacy) {
     return (
-      <PrivacyScreen
-        onBack={() => setShowPrivacy(false)}
-      />
+      <PrivacyScreen onBack={() => setShowPrivacy(false)} />
     );
   }
 
-  // Ниже должен идти основной return экрана Profile
+  const initials = profile.fullName
+    .split(' ')
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 
-  const fullName = user
-    ? `${user.firstName} ${user.lastName}`
-    : 'No user data';
+  const renderField = (
+    label: string,
+    field: keyof StudentProfile
+  ) => {
+    const value = profile[field];
 
-  const isStudent = user?.role === 'Student';
+    if (field === 'photo') return null;
 
-  const showMessage = (title: string) => {
-    Alert.alert(title, 'This feature will be available soon.');
+    return (
+      <View style={styles.infoRow} key={field}>
+        <Text style={styles.infoLabel}>{label}</Text>
+
+        {editing ? (
+          <TextInput
+            style={styles.editInput}
+            value={String(value)}
+            onChangeText={(text) => updateField(field, text)}
+            multiline={field === 'university' || field === 'program'}
+          />
+        ) : (
+          <Text style={styles.infoValue}>{String(value)}</Text>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -106,99 +198,85 @@ export default function ProfileScreen({ onLogout }: ProfileProps) {
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.header}>Profile</Text>
+      <Text style={styles.header}>My Profile</Text>
 
-      {/* User information */}
-      <View style={styles.userSection}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {user?.firstName?.charAt(0).toUpperCase() || '?'}
-          </Text>
-        </View>
+      <View style={styles.profileCard}>
+        <TouchableOpacity
+          style={styles.avatarContainer}
+          onPress={choosePhoto}
+          activeOpacity={0.8}
+        >
+          {profile.photo ? (
+            <Image
+              source={{ uri: profile.photo }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          )}
 
-        <View style={styles.userInfo}>
-          <Text style={styles.name}>{fullName}</Text>
-          <Text style={styles.email}>
-            {user?.email || 'Email not provided'}
-          </Text>
-          <Text style={styles.role}>
-            {user?.role || 'User'} • UniversityApp
-          </Text>
-        </View>
-      </View>
-
-      {/* Statistics summary */}
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryNumber}>
-            {isStudent ? '50/130' : '12'}
-          </Text>
-          <Text style={styles.summaryLabel}>
-            {isStudent ? 'Credit earns' : 'Courses'}
-          </Text>
-        </View>
-
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryNumber}>
-            {isStudent ? '3.02' : '8'}
-          </Text>
-          <Text style={styles.summaryLabel}>
-            {isStudent ? 'GPA' : 'Groups'}
-          </Text>
-        </View>
-
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryNumber}>2</Text>
-          <Text style={styles.summaryLabel}>
-            {isStudent ? 'Year student' : 'Year teaching'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Statistics */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View>
-            <Text style={styles.cardTitle}>Statistics</Text>
-            <Text style={styles.date}>Your academic overview</Text>
+          <View style={styles.cameraBadge}>
+            <Text style={styles.cameraText}>+</Text>
           </View>
+        </TouchableOpacity>
+
+        <Text style={styles.name}>{profile.fullName}</Text>
+        <Text style={styles.studentId}>
+          Student ID: {profile.studentId}
+        </Text>
+
+        <View style={styles.statusBadge}>
+          <View style={styles.statusDot} />
+          <Text style={styles.statusText}>{profile.status}</Text>
+        </View>
+
+        <Text style={styles.photoHint}>
+          Tap photo to change
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.cardTitle}>Student Information</Text>
 
           <TouchableOpacity
-            style={styles.attendButton}
-            onPress={() => showMessage('Attendance')}
+            onPress={() => {
+              if (editing) {
+                saveProfile();
+              } else {
+                setEditing(true);
+              }
+            }}
           >
-            <Text style={styles.attendText}>Mark Attend</Text>
+            <Text style={styles.editButton}>
+              {editing ? 'Save' : 'Edit Profile'}
+            </Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.statisticsGrid}>
-          <View style={styles.statItem}>
-            <Text style={styles.statIcon}>🟡</Text>
-            <View>
-              <Text style={styles.statLabel}>Attendance</Text>
-              <Text style={styles.statValue}>90%</Text>
-            </View>
-          </View>
+        {renderField('Full Name', 'fullName')}
+        {renderField('Student ID', 'studentId')}
+        {renderField('University', 'university')}
+        {renderField('Educational Program', 'program')}
+        {renderField('Course', 'course')}
+        {renderField('Group', 'group')}
+        {renderField('Status', 'status')}
 
-          <View style={styles.statItem}>
-            <Text style={styles.statIcon}>📋</Text>
-            <View>
-              <Text style={styles.statLabel}>Task & Work</Text>
-              <Text style={styles.statValue}>70%</Text>
-            </View>
-          </View>
-
-          <View style={styles.statItem}>
-            <Text style={styles.statIcon}>📝</Text>
-            <View>
-              <Text style={styles.statLabel}>Quiz</Text>
-              <Text style={styles.statValue}>85%</Text>
-            </View>
-          </View>
-        </View>
+        {editing && (
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => {
+              setProfile(DEFAULT_PROFILE);
+              setEditing(false);
+            }}
+          >
+            <Text style={styles.cancelText}>Cancel editing</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Dashboard */}
       <View style={styles.card}>
         <Text style={styles.dashboardTitle}>Dashboard</Text>
 
@@ -230,7 +308,6 @@ export default function ProfileScreen({ onLogout }: ProfileProps) {
         </TouchableOpacity>
       </View>
 
-      {/* Logout */}
       <TouchableOpacity
         style={styles.logoutButton}
         onPress={onLogout}
@@ -246,12 +323,12 @@ export default function ProfileScreen({ onLogout }: ProfileProps) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F6FF',
   },
   container: {
     paddingHorizontal: 20,
     paddingTop: 48,
-    paddingBottom: 30,
+    paddingBottom: 35,
   },
   loader: {
     flex: 1,
@@ -259,176 +336,196 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#222222',
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#242033',
     textAlign: 'center',
     marginBottom: 25,
   },
-  userSection: {
-    flexDirection: 'row',
+  profileCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 22,
     alignItems: 'center',
-    marginBottom: 25,
-    paddingHorizontal: 5,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: '#E9E2FA',
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 15,
   },
   avatar: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#EADCF5',
-    borderWidth: 1,
-    borderColor: '#B52B91',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#7955E8',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 25,
-    fontWeight: '700',
-    color: '#A52A87',
+    fontSize: 35,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
-  userInfo: {
-    marginLeft: 12,
-    flex: 1,
+  cameraBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#242033',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   name: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#222222',
-  },
-  email: {
-    fontSize: 12,
-    color: '#888888',
-    marginTop: 3,
-  },
-  role: {
-    fontSize: 11,
-    color: '#AAAAAA',
-    marginTop: 3,
-  },
-  summaryCard: {
-    backgroundColor: '#F5F1FF',
-    borderRadius: 12,
-    paddingVertical: 17,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 22,
-  },
-  summaryItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  summaryNumber: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#B52B91',
-  },
-  summaryLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#A52A87',
-    marginTop: 3,
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#242033',
     textAlign: 'center',
   },
-  card: {
-    backgroundColor: '#F7F5FF',
-    borderWidth: 1,
-    borderColor: '#C65AAE',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 22,
+  studentId: {
+    fontSize: 13,
+    color: '#858095',
+    marginTop: 7,
   },
-  cardHeader: {
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F8ED',
+    borderRadius: 20,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    marginTop: 13,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#24A35A',
+    marginRight: 7,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#21864C',
+    fontWeight: '600',
+  },
+  photoHint: {
+    fontSize: 11,
+    color: '#AAA4B8',
+    marginTop: 10,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: '#E9E2FA',
+  },
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 22,
+    marginBottom: 12,
   },
   cardTitle: {
     fontSize: 17,
-    fontWeight: '700',
-    color: '#222222',
+    fontWeight: 'bold',
+    color: '#242033',
+    flex: 1,
   },
-  date: {
-    fontSize: 10,
-    color: '#999999',
-    marginTop: 3,
+  editButton: {
+    color: '#7955E8',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
-  attendButton: {
-    backgroundColor: '#A5E5A7',
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 10,
+  infoRow: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0EDF6',
   },
-  attendText: {
-    fontSize: 9,
-    color: '#245A2A',
-    fontWeight: '600',
-  },
-  statisticsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    width: '48%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  statIcon: {
-    fontSize: 19,
-    marginRight: 7,
-  },
-  statLabel: {
-    fontSize: 10,
-    color: '#999999',
-  },
-  statValue: {
+  infoLabel: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#222222',
+    color: '#9993A8',
+    marginBottom: 6,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#242033',
+    fontWeight: '600',
+    lineHeight: 21,
+  },
+  editInput: {
+    backgroundColor: '#F8F6FF',
+    borderWidth: 1,
+    borderColor: '#DCD2F5',
+    borderRadius: 9,
+    padding: 10,
+    fontSize: 14,
+    color: '#242033',
+    minHeight: 42,
+  },
+  cancelButton: {
+    alignItems: 'center',
+    paddingVertical: 13,
+    marginTop: 8,
+  },
+  cancelText: {
+    color: '#9993A8',
+    fontWeight: '600',
   },
   dashboardTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#999999',
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#242033',
     marginBottom: 10,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0EDF6',
   },
   menuIcon: {
-    fontSize: 18,
-    marginRight: 10,
+    fontSize: 19,
+    marginRight: 12,
   },
   menuText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#222222',
+    color: '#242033',
   },
   arrow: {
     fontSize: 25,
-    color: '#BBBBBB',
+    color: '#AAA4B8',
   },
   logoutButton: {
-    backgroundColor: '#B52B91',
-    paddingVertical: 14,
-    borderRadius: 12,
+    backgroundColor: '#7955E8',
+    paddingVertical: 15,
+    borderRadius: 13,
     alignItems: 'center',
-    marginTop: 2,
   },
   logoutText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: 'bold',
   },
   version: {
     textAlign: 'center',
-    fontSize: 10,
-    color: '#AAAAAA',
-    marginTop: 15,
+    fontSize: 11,
+    color: '#AAA4B8',
+    marginTop: 18,
   },
 });
+
