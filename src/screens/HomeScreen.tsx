@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '../navigation/AppNavigator';
+import Header from '../components/Header';
 
 interface UserProfile {
   firstName: string;
@@ -58,7 +59,10 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <Text style={styles.subtitle}>Your education, your future.</Text>
+      <Header
+  title="Your Dashboard"
+  subtitle="Your education, your future."
+      />
 
       <View style={styles.semesterCard}>
         <Text style={styles.semesterLabel}>
