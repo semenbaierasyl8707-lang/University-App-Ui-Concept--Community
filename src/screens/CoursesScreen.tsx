@@ -1,34 +1,68 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 
+import { Course, fetchCourses } from '../data/courses';
+
 export default function CoursesScreen() {
-  const courses = [
-    { code: 'CS-301', title: 'Software Engineering', teacher: 'Dr. Ahmad Khan', credits: '3 Cr' },
-    { code: 'CS-304', title: 'Mobile App Development', teacher: 'Prof. Sarah Ali', credits: '4 Cr' },
-    { code: 'MKT-201', title: 'Digital Marketing', teacher: 'Mr. Usman Raza', credits: '3 Cr' },
-    { code: 'AI-401', title: 'Artificial Intelligence', teacher: 'Dr. Bilal Malik', credits: '3 Cr' },
-  ];
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadCourses = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const data = await fetchCourses();
+      setCourses(data);
+    } catch (err) {
+      setError('Деректерді жүктеу мүмкін болмады.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCourses();
+  }, []);
 
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>My Courses</Text>
 
-      {courses.map((course) => (
-        <View key={course.code} style={styles.card}>
-          <View style={styles.row}>
-            <Text style={styles.code}>{course.code}</Text>
-            <Text style={styles.credits}>{course.credits}</Text>
-          </View>
+      {loading ? (
+        <ActivityIndicator size="large" color="#6C4DE6" />
+      ) : error ? (
+        <View>
+          <Text style={styles.error}>{error}</Text>
 
-          <Text style={styles.courseTitle}>{course.title}</Text>
-          <Text style={styles.teacher}>{course.teacher}</Text>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={loadCourses}
+          >
+            <Text style={styles.buttonText}>Try Again</Text>
+          </TouchableOpacity>
         </View>
-      ))}
+      ) : (
+        courses.map((course) => (
+          <View key={course.id} style={styles.card}>
+            <View style={styles.row}>
+              <Text style={styles.code}>POST #{course.id}</Text>
+              <Text style={styles.credits}>API Data</Text>
+            </View>
+
+            <Text style={styles.courseTitle}>{course.title}</Text>
+            <Text style={styles.teacher}>{course.body}</Text>
+          </View>
+        ))
+      )}
     </ScrollView>
   );
 }
@@ -82,5 +116,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#77738A',
     marginTop: 6,
+  },
+  error: {
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  button: {
+    backgroundColor: '#6C4DE6',
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 15,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    textAlign: 'center',
+    fontWeight: '700',
   },
 });

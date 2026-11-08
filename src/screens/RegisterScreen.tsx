@@ -15,6 +15,7 @@ import colors from '../theme/colors';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveCloudData } from '../data/cloudStorage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 
@@ -40,10 +41,12 @@ const handleRegister = async () => {
     return;
   }
 
-  if (!/\S+@\S+\.\S+/.test(email)) {
-    Alert.alert('Error', 'Please enter a valid email.');
-    return;
-  }
+  const normalizedEmail = email.trim().toLowerCase();
+
+if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+  Alert.alert('Error', 'Please enter a valid email address.');
+  return;
+}
 
   if (password.length < 6) {
     Alert.alert('Error', 'Password must contain at least 6 characters.');
@@ -68,8 +71,20 @@ const handleRegister = async () => {
       JSON.stringify(userProfile)
     );
 
-    Alert.alert('Success', 'Registration completed!');
-    navigation.replace('Main');
+    const cloudSaved = await saveCloudData({
+  firstName: userProfile.firstName,
+  lastName: userProfile.lastName,
+  email: userProfile.email,
+});
+
+    Alert.alert(
+  'Success',
+  cloudSaved
+    ? 'Registration completed! Data saved locally and in Firebase.'
+    : 'Registration completed! Data saved locally. Cloud storage failed.'
+);
+
+navigation.replace('Main');
   } catch (error) {
     Alert.alert('Error', 'Could not save your profile.');
     console.log(error);
