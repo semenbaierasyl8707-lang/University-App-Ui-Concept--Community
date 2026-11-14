@@ -24,11 +24,21 @@ import ResultScreen from '../screens/ResultScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import StudentsScreen from '../screens/StudentsScreen';
+import CourseDetailsScreen from '../screens/CourseDetailsScreen';
 
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   Main: undefined;
+  CourseDetails: {
+    course: {
+      id: string;
+      title: string;
+      description: string;
+      teacher: string;
+      credits: string;
+    };
+  };
 };
 
 export type MainTabParamList = {
@@ -181,13 +191,21 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Login"
-        screenOptions={{ headerShown: false }}
-      >
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen name="Main" component={MainTabs} />
-      </Stack.Navigator>
+  initialRouteName="Login"
+  screenOptions={{ headerShown: false }}
+>
+  <Stack.Screen name="Login" component={LoginScreen} />
+  <Stack.Screen name="Register" component={RegisterScreen} />
+  <Stack.Screen name="Main" component={MainTabs} />
+
+  <Stack.Screen
+    name="CourseDetails"
+    component={CourseDetailsScreen}
+    options={{
+      headerShown: false,
+    }}
+  />
+</Stack.Navigator>
     </NavigationContainer>
   );
 }

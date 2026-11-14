@@ -1,69 +1,109 @@
-import React, { useEffect, useState } from 'react';
+
+import React from 'react';
 import {
-  View,
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
 
-import { Course, fetchCourses } from '../data/courses';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/AppNavigator';
+
+const courses = [
+  {
+    id: 'CS101',
+    title: 'Programming Fundamentals',
+    description: 'Бағдарламалаудың негізгі ұғымдары, алгоритмдер және JavaScript.',
+    teacher: 'Computer Science',
+    credits: '5 Credits',
+  },
+  {
+    id: 'CS102',
+    title: 'Database Systems',
+    description: 'SQL, деректер базасын құру, кестелер және сұраныстар.',
+    teacher: 'Computer Science',
+    credits: '5 Credits',
+  },
+  {
+    id: 'CS103',
+    title: 'Web Development',
+    description: 'HTML, CSS, JavaScript және веб-қосымшаларды әзірлеу.',
+    teacher: 'Web Technologies',
+    credits: '5 Credits',
+  },
+  {
+    id: 'CS104',
+    title: 'Mobile App Development',
+    description: 'React Native және Expo арқылы мобильді қосымшалар жасау.',
+    teacher: 'Software Development',
+    credits: '5 Credits',
+  },
+  {
+    id: 'CS105',
+    title: 'Mathematics',
+    description: 'Жоғары математика және есептерді шешу әдістері.',
+    teacher: 'Mathematics',
+    credits: '4 Credits',
+  },
+  {
+    id: 'CS106',
+    title: 'Information Systems',
+    description: 'Ақпараттық жүйелердің құрылымы және жұмыс істеу принциптері.',
+    teacher: 'Information Technology',
+    credits: '5 Credits',
+  },
+];
 
 export default function CoursesScreen() {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const loadCourses = async () => {
-    try {
-      setLoading(true);
-      setError('');
-
-      const data = await fetchCourses();
-      setCourses(data);
-    } catch (err) {
-      setError('Деректерді жүктеу мүмкін болмады.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCourses();
-  }, []);
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>My Courses</Text>
+      <Text style={styles.subtitle}>
+        Your current study subjects
+      </Text>
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#6C4DE6" />
-      ) : error ? (
-        <View>
-          <Text style={styles.error}>{error}</Text>
+      {courses.map((course) => (
+        <TouchableOpacity
+          key={course.id}
+          style={styles.card}
+          activeOpacity={0.8}
+          onPress={() =>
+            navigation.navigate('CourseDetails', { course })
+          }
+        >
+          <ViewRow course={course} />
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={loadCourses}
-          >
-            <Text style={styles.buttonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        courses.map((course) => (
-          <View key={course.id} style={styles.card}>
-            <View style={styles.row}>
-              <Text style={styles.code}>POST #{course.id}</Text>
-              <Text style={styles.credits}>API Data</Text>
-            </View>
+          <Text style={styles.courseTitle}>
+            {course.title}
+          </Text>
 
-            <Text style={styles.courseTitle}>{course.title}</Text>
-            <Text style={styles.teacher}>{course.body}</Text>
-          </View>
-        ))
-      )}
+          <Text style={styles.description}>
+            {course.description}
+          </Text>
+
+          <Text style={styles.teacher}>
+            Department: {course.teacher}
+          </Text>
+
+          <Text style={styles.openText}>
+            View course details →
+          </Text>
+        </TouchableOpacity>
+      ))}
     </ScrollView>
+  );
+}
+
+function ViewRow({ course }: { course: (typeof courses)[number] }) {
+  return (
+    <Text style={styles.code}>
+      {course.id}  ·  {course.credits}
+    </Text>
   );
 }
 
@@ -77,8 +117,13 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '700',
     color: '#252238',
-    marginBottom: 20,
     marginTop: 35,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#77738A',
+    marginTop: 6,
+    marginBottom: 20,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -88,23 +133,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginBottom: 14,
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   code: {
     fontSize: 12,
     fontWeight: '700',
     color: '#6C4DE6',
-  },
-  credits: {
-    fontSize: 12,
-    backgroundColor: '#F0EBFF',
-    color: '#6C4DE6',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
   },
   courseTitle: {
     fontSize: 17,
@@ -112,25 +144,21 @@ const styles = StyleSheet.create({
     color: '#252238',
     marginTop: 12,
   },
-  teacher: {
+  description: {
     fontSize: 13,
     color: '#77738A',
-    marginTop: 6,
+    lineHeight: 20,
+    marginTop: 7,
   },
-  error: {
-    color: 'red',
-    textAlign: 'center',
-    marginTop: 20,
+  teacher: {
+    fontSize: 12,
+    color: '#9994AA',
+    marginTop: 12,
   },
-  button: {
-    backgroundColor: '#6C4DE6',
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 15,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    textAlign: 'center',
-    fontWeight: '700',
+  openText: {
+    color: '#6C4DE6',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 14,
   },
 });

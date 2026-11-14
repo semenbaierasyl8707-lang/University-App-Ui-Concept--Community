@@ -14,10 +14,12 @@ import {
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import SettingsScreen from './SettingsScreen';
 import AchievementScreen from './Achievement';
 import PrivacyScreen from './PrivacyScreen';
+
 
 interface ProfileProps {
   onLogout: () => void;
@@ -90,36 +92,54 @@ export default function ProfileScreen({ onLogout }: ProfileProps) {
   };
 
   const choosePhoto = async () => {
-    try {
-      const permission =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+  try {
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-      if (!permission.granted) {
-        Alert.alert(
-          'Permission required',
-          'Allow access to your photo library to choose a profile picture.'
-        );
-        return;
-      }
+    if (!permission.granted) {
+      Alert.alert(
+        'Permission required',
+        'Allow access to your photo library to choose a profile picture.'
+      );
+      return;
+    }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const sourceUri = result.assets[0].uri;
+      const fileName = `profile-${Date.now()}.jpg`;
+      const destinationUri = `${FileSystem.documentDirectory}${fileName}`;
+
+      await FileSystem.copyAsync({
+        from: sourceUri,
+        to: destinationUri,
       });
 
-      if (!result.canceled && result.assets.length > 0) {
-        setProfile({
-          ...profile,
-          photo: result.assets[0].uri,
-        });
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Could not open photo library.');
-    }
-  };
+      const updatedProfile = {
+        ...profile,
+        photo: destinationUri,
+      };
 
+      setProfile(updatedProfile);
+
+      await AsyncStorage.setItem(
+        'studentProfile',
+        JSON.stringify(updatedProfile)
+      );
+
+      Alert.alert('Success', 'Profile photo saved!');
+    }
+  } catch (error) {
+    console.log('Photo save error:', error);
+    Alert.alert('Error', 'Could not save profile photo.');
+  }
+};
   const updateField = (field: keyof StudentProfile, value: string) => {
     setProfile((previous) => ({
       ...previous,
@@ -235,6 +255,73 @@ export default function ProfileScreen({ onLogout }: ProfileProps) {
         <Text style={styles.photoHint}>
           Tap photo to change
         </Text>
+      </View>
+
+      {/* Academic summary */}
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryItem}>
+          <Text style={styles.summaryNumber}>50/130</Text>
+          <Text style={styles.summaryLabel}>Credit earned</Text>
+        </View>
+
+        <View style={styles.summaryItem}>
+          <Text style={styles.summaryNumber}>3.02</Text>
+          <Text style={styles.summaryLabel}>GPA</Text>
+        </View>
+
+        <View style={styles.summaryItem}>
+          <Text style={styles.summaryNumber}>{profile.course}</Text>
+          <Text style={styles.summaryLabel}>Year student</Text>
+        </View>
+      </View>
+
+      {/* Statistics */}
+      <View style={styles.statisticsCard}>
+        <View style={styles.statisticsHeader}>
+          <View>
+            <Text style={styles.statisticsTitle}>Statistics</Text>
+            <Text style={styles.statisticsDate}>Academic progress</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.attendButton}
+            activeOpacity={0.8}
+            onPress={() =>
+              Alert.alert(
+                'Attendance',
+                'Attendance marking will be connected to the university system soon.'
+              )
+            }
+          >
+            <Text style={styles.attendButtonText}>Mark Attend</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.statisticsGrid}>
+          <View style={styles.statisticItem}>
+            <Text style={styles.statisticIcon}>📅</Text>
+            <View style={styles.statisticTextWrap}>
+              <Text style={styles.statisticLabel}>Attendance</Text>
+              <Text style={styles.statisticValue}>90%</Text>
+            </View>
+          </View>
+
+          <View style={styles.statisticItem}>
+            <Text style={styles.statisticIcon}>📋</Text>
+            <View style={styles.statisticTextWrap}>
+              <Text style={styles.statisticLabel}>Task & Work</Text>
+              <Text style={styles.statisticValue}>70%</Text>
+            </View>
+          </View>
+
+          <View style={styles.statisticItem}>
+            <Text style={styles.statisticIcon}>📝</Text>
+            <View style={styles.statisticTextWrap}>
+              <Text style={styles.statisticLabel}>Quiz</Text>
+              <Text style={styles.statisticValue}>85%</Text>
+            </View>
+          </View>
+        </View>
       </View>
 
       <View style={styles.card}>
@@ -422,6 +509,103 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#AAA4B8',
     marginTop: 10,
+  },
+  summaryCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: '#F2EEFF',
+    borderRadius: 12,
+    paddingVertical: 17,
+    paddingHorizontal: 8,
+    marginBottom: 22,
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryNumber: {
+    color: '#8B2387',
+    fontSize: 17,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    color: '#8B2387',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  statisticsCard: {
+    backgroundColor: '#F8F6FF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#A52A91',
+    padding: 18,
+    marginBottom: 22,
+  },
+  statisticsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  statisticsTitle: {
+    color: '#171323',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  statisticsDate: {
+    color: '#9993A8',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  attendButton: {
+    backgroundColor: '#91E69B',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  attendButtonText: {
+    color: '#23452A',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  statisticsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  statisticItem: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  statisticIcon: {
+    width: 31,
+    height: 31,
+    borderRadius: 16,
+    overflow: 'hidden',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    fontSize: 18,
+    marginRight: 7,
+  },
+  statisticTextWrap: {
+    flex: 1,
+  },
+  statisticLabel: {
+    color: '#9993A8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  statisticValue: {
+    color: '#171323',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 1,
   },
   card: {
     backgroundColor: '#FFFFFF',
